@@ -4,10 +4,10 @@
   
   <!-- Desktop Nav List -->
   <ul class="hidden md:flex gap-8 list-none text-[10px] tracking-[0.2em] uppercase items-center">
-    <li><button (click)="currentView.set('home')" [class.text-gold]="currentView() === 'home'" [class.text-muted]="currentView() !== 'home'" class="hover:text-ivory transition-colors">Home</button></li>
-    <li><button (click)="currentView.set('memories')" [class.text-gold]="currentView() === 'memories'" [class.text-muted]="currentView() !== 'memories'" class="hover:text-ivory transition-colors">Memories</button></li>
-    <li><button (click)="currentView.set('classmates')" [class.text-gold]="currentView() === 'classmates'" [class.text-muted]="currentView() !== 'classmates'" class="hover:text-ivory transition-colors">Classmates</button></li>
-    <li><button (click)="currentView.set('timecapsule')" [class.text-gold]="currentView() === 'timecapsule'" [class.text-muted]="currentView() !== 'timecapsule'" class="hover:text-ivory transition-colors">Time Capsule</button></li>
+    <li><button (click)="setView('home')" [class.text-gold]="currentView() === 'home'" [class.text-muted]="currentView() !== 'home'" class="hover:text-ivory transition-colors">Home</button></li>
+    <li><button (click)="setView('memories')" [class.text-gold]="currentView() === 'memories'" [class.text-muted]="currentView() !== 'memories'" class="hover:text-ivory transition-colors">Memories</button></li>
+    <li><button (click)="setView('classmates')" [class.text-gold]="currentView() === 'classmates'" [class.text-muted]="currentView() !== 'classmates'" class="hover:text-ivory transition-colors">Classmates</button></li>
+    <li><button (click)="setView('timecapsule')" [class.text-gold]="currentView() === 'timecapsule'" [class.text-muted]="currentView() !== 'timecapsule'" class="hover:text-ivory transition-colors">Time Capsule</button></li>
     <li>
       <button (click)="toggleTheme()" class="text-gold hover:text-ivory transition-colors flex items-center" title="Toggle Theme">
         @if (isLightMode()) {
@@ -42,10 +42,10 @@
 @if (isMobileMenuOpen()) {
   <div class="fixed inset-0 z-[95] bg-midnight/95 backdrop-blur-lg flex flex-col justify-center px-8 md:hidden">
     <ul class="flex flex-col gap-6 text-center text-lg tracking-[0.2em] uppercase list-none p-0">
-      <li><button (click)="currentView.set('home'); isMobileMenuOpen.set(false)" [class.text-gold]="currentView() === 'home'" [class.text-muted]="currentView() !== 'home'" class="w-full py-3 hover:text-ivory transition-colors">Home</button></li>
-      <li><button (click)="currentView.set('memories'); isMobileMenuOpen.set(false)" [class.text-gold]="currentView() === 'memories'" [class.text-muted]="currentView() !== 'memories'" class="w-full py-3 hover:text-ivory transition-colors">Memories</button></li>
-      <li><button (click)="currentView.set('classmates'); isMobileMenuOpen.set(false)" [class.text-gold]="currentView() === 'classmates'" [class.text-muted]="currentView() !== 'classmates'" class="w-full py-3 hover:text-ivory transition-colors">Classmates</button></li>
-      <li><button (click)="currentView.set('timecapsule'); isMobileMenuOpen.set(false)" [class.text-gold]="currentView() === 'timecapsule'" [class.text-muted]="currentView() !== 'timecapsule'" class="w-full py-3 hover:text-ivory transition-colors">Time Capsule</button></li>
+      <li><button (click)="setView('home')" [class.text-gold]="currentView() === 'home'" [class.text-muted]="currentView() !== 'home'" class="w-full py-3 hover:text-ivory transition-colors">Home</button></li>
+      <li><button (click)="setView('memories')" [class.text-gold]="currentView() === 'memories'" [class.text-muted]="currentView() !== 'memories'" class="w-full py-3 hover:text-ivory transition-colors">Memories</button></li>
+      <li><button (click)="setView('classmates')" [class.text-gold]="currentView() === 'classmates'" [class.text-muted]="currentView() !== 'classmates'" class="w-full py-3 hover:text-ivory transition-colors">Classmates</button></li>
+      <li><button (click)="setView('timecapsule')" [class.text-gold]="currentView() === 'timecapsule'" [class.text-muted]="currentView() !== 'timecapsule'" class="w-full py-3 hover:text-ivory transition-colors">Time Capsule</button></li>
     </ul>
   </div>
 }
@@ -110,18 +110,32 @@
       <h3 class="text-xs uppercase tracking-widest text-gold mb-2">Four Years in Fragments</h3>
       <h2 class="font-serif text-[clamp(2rem,3vw,2.5rem)] font-bold text-ivory">Chronicles of '27</h2>
     </div>
-    <button (click)="openMemoryModal()" class="group flex items-center gap-2 bg-card hover:bg-white/5 border border-white/10 hover:border-gold/30 text-ivory text-xs uppercase tracking-widest px-6 py-3 rounded transition-all duration-300">
-      <span class="text-gold group-hover:rotate-12 transition-transform duration-300">✦</span> Leave a Note
-    </button>
+    <div class="flex gap-4 items-center self-stretch md:self-auto justify-between md:justify-end">
+      <!-- Sorting Selector -->
+      <div class="relative">
+        <select (change)="memoriesSortOrder.set($any($event.target).value)"
+                class="bg-deep border border-white/10 rounded-lg px-4 py-2 text-xs uppercase tracking-widest text-ivory outline-none focus:border-gold/50 cursor-pointer appearance-none pr-8">
+          <option value="newest" [selected]="memoriesSortOrder() === 'newest'">Newest First</option>
+          <option value="oldest" [selected]="memoriesSortOrder() === 'oldest'">Oldest First</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+      </div>
+      
+      <button (click)="openMemoryModal()" class="group flex items-center gap-2 bg-card hover:bg-white/5 border border-white/10 hover:border-gold/30 text-ivory text-xs uppercase tracking-widest px-6 py-3 rounded transition-all duration-300">
+        <span class="text-gold group-hover:rotate-12 transition-transform duration-300">✦</span> Leave a Note
+      </button>
+    </div>
   </div>
 
   <div class="memory-track flex gap-8 overflow-x-auto pb-12 pt-8 snap-x snap-mandatory px-4 -mx-4">
-    @if (memories().length === 0) {
+    @if (currentMemories().length === 0) {
       <div class="w-full text-center py-12">
         <p class="text-muted text-sm italic">No memories recorded yet. Be the first to share one.</p>
       </div>
     }
-    @for (mem of memories(); track mem.name; let i = $index) {
+    @for (mem of currentMemories(); track mem.name + '_' + mem.message; let i = $index) {
       <div class="flex-none w-[280px] snap-start group p-4">
         <div class="transition-transform duration-300 group-hover:-translate-y-4 drop-shadow-lg group-hover:drop-shadow-2xl">
           <div class="mem-card bg-[#E0F2F1] p-4 pb-6 flex flex-col relative rounded-sm"
@@ -134,7 +148,7 @@
 
             @if (mem.imageUrl) {
               <div class="w-full mb-4 rounded-sm shadow-inner relative flex justify-center bg-black/5">
-                <img [src]="mem.imageUrl" class="max-w-full max-h-[220px] object-contain grayscale-[10%] sepia-[10%]" alt="Shared memory image from {{ mem.name }}">
+                <img [src]="getOptimizedImageUrl(mem.imageUrl, 280)" class="max-w-full max-h-[220px] object-contain grayscale-[10%] sepia-[10%]" alt="Shared memory image from {{ mem.name }}">
               </div>
             }
             
@@ -149,6 +163,15 @@
             </div>
           </div>
         </div>
+      </div>
+    }
+    @if (hasMoreMemories()) {
+      <div class="flex-none w-[280px] p-4 flex items-center justify-center">
+        <button (click)="visibleMemoriesCount.update(c => c + 10)" 
+                class="w-full h-[320px] border border-dashed border-white/20 hover:border-gold/50 rounded-lg flex flex-col items-center justify-center text-muted hover:text-gold transition-all duration-300 bg-card/20 cursor-pointer">
+          <span class="text-3xl mb-2">📥</span>
+          <span class="text-xs uppercase tracking-widest font-bold">Load More Notes</span>
+        </button>
       </div>
     }
   </div>
@@ -240,13 +263,28 @@
       </button>
     </div>
     
-    <div class="w-full md:w-64 relative">
-      <input type="text" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" 
-             placeholder="Search classmates..." 
-             class="w-full bg-deep border border-white/10 rounded-full px-4 py-2 text-sm text-ivory outline-none focus:border-gold/50 transition-colors pl-10">
-      <svg class="w-4 h-4 text-muted absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-      </svg>
+    <div class="flex w-full md:w-auto gap-4 items-center self-stretch md:self-auto justify-between md:justify-end">
+      <!-- Sorting Dropdown -->
+      <div class="relative w-44 md:w-48 shrink-0">
+        <select (change)="classmatesSortOrder.set($any($event.target).value)"
+                class="w-full bg-deep border border-white/10 rounded-full px-4 py-2 text-xs uppercase tracking-widest text-ivory outline-none focus:border-gold/50 cursor-pointer appearance-none pr-8">
+          <option value="alphabetical" [selected]="classmatesSortOrder() === 'alphabetical'">Alphabetical (A-Z)</option>
+          <option value="newest" [selected]="classmatesSortOrder() === 'newest'">Newest First</option>
+          <option value="oldest" [selected]="classmatesSortOrder() === 'oldest'">Oldest First</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-muted">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+      </div>
+
+      <div class="relative w-full md:w-64">
+        <input type="text" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" 
+               placeholder="Search classmates..." 
+               class="w-full bg-deep border border-white/10 rounded-full px-4 py-2 text-sm text-ivory outline-none focus:border-gold/50 transition-colors pl-10">
+        <svg class="w-4 h-4 text-muted absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -312,7 +350,7 @@
                     <div class="absolute -top-4 -left-3 text-3xl md:text-4xl rotate-[-15deg] drop-shadow-md z-20">🎓</div>
                     <div class="w-full aspect-[4/5] bg-deep mb-3 overflow-hidden relative shadow-inner flex justify-center items-center">
                       @if (s.imageUrl) {
-                        <img [src]="s.imageUrl" class="max-w-full max-h-full object-contain grayscale-[15%] sepia-[20%]" alt="{{ s.name }} senior portrait">
+                        <img [src]="getOptimizedImageUrl(s.imageUrl, 220)" class="max-w-full max-h-full object-contain grayscale-[15%] sepia-[20%]" alt="{{ s.name }} senior portrait">
                       } @else {
                         <div class="w-full h-full flex flex-col items-center justify-center bg-card text-muted">
                           <span class="text-2xl mb-1">📸</span>
@@ -331,7 +369,7 @@
                     <div class="absolute inset-0 bg-[#F8F9FA] p-3 md:p-4 pb-5 md:pb-6 shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
                       <div class="absolute -top-4 -left-3 text-3xl md:text-4xl rotate-[-15deg] drop-shadow-md z-20">🌱</div>
                       <div class="w-full aspect-[4/5] bg-deep mb-3 overflow-hidden relative shadow-inner flex justify-center items-center">
-                        <img [src]="s.freshmanImageUrl" class="max-w-full max-h-full object-contain grayscale-[15%] sepia-[20%]" alt="{{ s.name }} freshman portrait">
+                        <img [src]="getOptimizedImageUrl(s.freshmanImageUrl, 220)" class="max-w-full max-h-full object-contain grayscale-[15%] sepia-[20%]" alt="{{ s.name }} freshman portrait">
                       </div>
                       <div class="text-center font-serif font-bold text-[#111827] tracking-widest text-lg md:text-xl leading-none mb-1">FRESHMAN</div>
                       @if (s.major) {
@@ -353,6 +391,14 @@
           </div>
         }
       </div>
+      @if (hasMoreClassmates()) {
+        <div class="flex justify-center mt-12">
+          <button (click)="visibleClassmatesCount.update(c => c + 10)" 
+                  class="group flex items-center gap-2 bg-card hover:bg-white/5 border border-white/10 hover:border-gold/30 text-ivory text-xs uppercase tracking-widest px-8 py-4 rounded-full transition-all duration-300 shadow-lg cursor-pointer">
+            <span class="text-gold group-hover:translate-y-0.5 transition-transform duration-300">▼</span> Load More Classmates
+          </button>
+        </div>
+      }
     }
   </div>
 </section>
@@ -540,8 +586,12 @@
           </div>
         </div>
 
-        <button type="submit" [disabled]="!studentForm.valid" class="w-full mt-2 bg-gradient-to-r from-gold-light to-gold text-midnight font-bold py-3 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
-          Add Memory
+        <button type="submit" [disabled]="!studentForm.valid || isSubmitting()" class="w-full mt-2 bg-gradient-to-r from-gold-light to-gold text-midnight font-bold py-3 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
+          @if (isSubmitting()) {
+            Uploading...
+          } @else {
+            Add Memory
+          }
         </button>
       </form>
     </div>
@@ -606,9 +656,13 @@
           </div>
         </div>
 
-        <button type="submit" [disabled]="!memoryForm.valid" 
+        <button type="submit" [disabled]="!memoryForm.valid || isSubmitting()" 
                 class="w-full mt-2 bg-gradient-to-r from-gold-light to-gold text-midnight font-bold py-3 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
-          Post Note
+          @if (isSubmitting()) {
+            Posting Note...
+          } @else {
+            Post Note
+          }
         </button>
       </form>
     </div>
@@ -639,10 +693,14 @@
           <textarea id="capsuleMessage" formControlName="message" rows="3" class="w-full bg-deep border border-white/10 rounded-md px-4 py-2.5 text-sm text-ivory outline-none focus:border-gold/50 transition-colors resize-none" placeholder="Write your predictions or goals..."></textarea>
         </div>
 
-        <button type="submit" [disabled]="!capsuleForm.valid" 
+        <button type="submit" [disabled]="!capsuleForm.valid || isSubmitting()" 
                 class="w-full mt-2 bg-gradient-to-r from-gold-light to-gold text-midnight font-bold py-3 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center justify-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-          Lock Until 2032
+          @if (isSubmitting()) {
+            Sealing...
+          } @else {
+            Lock Until 2032
+          }
         </button>
       </form>
     </div>

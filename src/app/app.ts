@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, OnDestroy, signal, afterNextRender, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, OnDestroy, signal, afterNextRender, computed, inject, effect, untracked } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { db, collection, addDoc, getDocs, query } from './firebase';
+import { db, collection, addDoc, getDocs, query, where } from './firebase';
 
 export interface Student {
   name: string;
@@ -11,6 +11,8 @@ export interface Student {
   imageUrl?: string;
   freshmanImageUrl?: string;
   caption?: string;
+  updatedAt?: string;
+  status?: 'active' | 'deleted';
 }
 
 export interface Memory {
@@ -18,6 +20,8 @@ export interface Memory {
   message: string;
   signatureFont?: string;
   imageUrl?: string;
+  updatedAt?: string;
+  status?: 'active' | 'deleted';
 }
 
 export interface TimeCapsule {
@@ -25,6 +29,8 @@ export interface TimeCapsule {
   message: string;
   color?: string;
   date?: string;
+  updatedAt?: string;
+  status?: 'active' | 'deleted';
 }
 
 interface Star {
@@ -63,6 +69,11 @@ export class App implements OnDestroy {
 
   flippedClassmates = signal<Record<string, boolean>>({});
 
+  visibleClassmatesCount = signal(10);
+  classmatesSortOrder = signal<'alphabetical' | 'newest' | 'oldest'>('alphabetical');
+  visibleMemoriesCount = signal(10);
+  memoriesSortOrder = signal<'newest' | 'oldest'>('newest');
+
   assiutUniversityStudentsByCity = computed(() => {
     const uniStudents = this.students().filter(s => s.university === 'Assiut University');
     const cityMap = new Map<string, Student[]>();
@@ -94,7 +105,7 @@ export class App implements OnDestroy {
     return data.map(d => d.city);
   });
 
-  currentStudents = computed(() => {
+  filteredClassmates = computed(() => {
     const data = this.selectedUniversityTab() === 'Assiut University' 
       ? this.assiutUniversityStudentsByCity() 
       : this.nationalUniversityStudentsByCity();
@@ -108,7 +119,44 @@ export class App implements OnDestroy {
       filteredStudents = filteredStudents.filter(s => s.name.toLowerCase().includes(query) || s.major?.toLowerCase().includes(query));
     }
     
-    return filteredStudents;
+    const sorted = [...filteredStudents];
+    const order = this.classmatesSortOrder();
+    if (order === 'alphabetical') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (order === 'newest') {
+      sorted.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    } else if (order === 'oldest') {
+      sorted.sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''));
+    }
+    
+    return sorted;
+  });
+
+  currentStudents = computed(() => {
+    return this.filteredClassmates().slice(0, this.visibleClassmatesCount());
+  });
+
+  hasMoreClassmates = computed(() => {
+    return this.filteredClassmates().length > this.visibleClassmatesCount();
+  });
+
+  filteredMemories = computed(() => {
+    const sorted = [...this.memories()];
+    const order = this.memoriesSortOrder();
+    if (order === 'newest') {
+      sorted.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    } else if (order === 'oldest') {
+      sorted.sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''));
+    }
+    return sorted;
+  });
+
+  currentMemories = computed(() => {
+    return this.filteredMemories().slice(0, this.visibleMemoriesCount());
+  });
+
+  hasMoreMemories = computed(() => {
+    return this.filteredMemories().length > this.visibleMemoriesCount();
   });
 
   cities = [
@@ -175,6 +223,7 @@ export class App implements OnDestroy {
   isCapsuleModalOpen = signal(false);
   isMobileMenuOpen = signal(false);
   isLightMode = signal(true);
+  isSubmitting = signal(false);
   studentForm: FormGroup;
   memoryForm: FormGroup;
   capsuleForm: FormGroup;
@@ -219,8 +268,32 @@ export class App implements OnDestroy {
       this.initCountdown();
       this.initCapsuleCountdown();
       this.setLightTheme(true);
-      this.loadLocalData();
     });
+
+    effect(() => {
+      this.selectedUniversityTab();
+      this.selectedCityTab();
+      this.searchQuery();
+      untracked(() => this.visibleClassmatesCount.set(10));
+    });
+
+    effect(() => {
+      this.memoriesSortOrder();
+      untracked(() => this.visibleMemoriesCount.set(10));
+    });
+  }
+
+  setView(view: 'home' | 'classmates' | 'memories' | 'timecapsule') {
+    this.currentView.set(view);
+    this.isMobileMenuOpen.set(false);
+    
+    if (view === 'classmates' && this.students().length === 0) {
+      this.loadStudents();
+    } else if (view === 'memories' && this.memories().length === 0) {
+      this.loadMemories();
+    } else if (view === 'timecapsule' && this.timeCapsules().length === 0) {
+      this.loadTimeCapsules();
+    }
   }
 
   checkSystemTheme() {
@@ -335,6 +408,37 @@ export class App implements OnDestroy {
     });
   }
 
+  private async uploadToCloudinary(base64DataUrl: string): Promise<string> {
+    const cloudName = 'ddncvahi8';
+    const uploadPreset = 'ml_default';
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+
+    const formData = new FormData();
+    formData.append('file', base64DataUrl);
+    formData.append('upload_preset', uploadPreset);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || 'Failed to upload image to Cloudinary');
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  }
+
+  getOptimizedImageUrl(url?: string, width = 300): string {
+    if (!url) return '';
+    if (url.includes('cloudinary.com')) {
+      return url.replace('/upload/', `/upload/w_${width},c_limit,q_auto,f_auto/`);
+    }
+    return url;
+  }
+
   onImageUpload(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
@@ -383,170 +487,348 @@ export class App implements OnDestroy {
     }
   }
 
-  submitForm() {
-    if (this.studentForm.valid) {
-      const newStudent: Student = {
-        name: this.studentForm.value.name,
-        major: this.studentForm.value.major,
-        university: this.studentForm.value.university,
-        city: this.studentForm.value.city,
-        track: 'New Graduate',
-        ...(this.uploadedImage() ? { imageUrl: this.uploadedImage()! } : {}),
-        ...(this.uploadedFreshmanImage() ? { freshmanImageUrl: this.uploadedFreshmanImage()! } : {}),
-        ...(this.studentForm.value.caption ? { caption: this.studentForm.value.caption } : {})
-      };
+  async submitForm() {
+    if (this.studentForm.valid && !this.isSubmitting()) {
+      this.isSubmitting.set(true);
+      try {
+        let imageUrl = '';
+        let freshmanImageUrl = '';
 
-      this.students.update(s => {
-        const updated = [newStudent, ...s];
-        try {
-          localStorage.setItem('fci_students', JSON.stringify(updated));
-        } catch (e) {
-          console.error('Error saving classmate to localStorage:', e);
+        if (this.uploadedImage()) {
+          imageUrl = await this.uploadToCloudinary(this.uploadedImage()!);
         }
-        return updated;
-      });
+        if (this.uploadedFreshmanImage()) {
+          freshmanImageUrl = await this.uploadToCloudinary(this.uploadedFreshmanImage()!);
+        }
 
-      // Save to Firebase asynchronously
-      addDoc(collection(db, 'students'), newStudent).catch(err => {
-        console.error('Error saving classmate to Firebase:', err);
-      });
+        const newStudent: Student = {
+          name: this.studentForm.value.name,
+          major: this.studentForm.value.major,
+          university: this.studentForm.value.university,
+          city: this.studentForm.value.city,
+          track: 'New Graduate',
+          updatedAt: new Date().toISOString(),
+          status: 'active',
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(freshmanImageUrl ? { freshmanImageUrl } : {}),
+          ...(this.studentForm.value.caption ? { caption: this.studentForm.value.caption } : {})
+        };
 
-      this.closeModal();
+        this.students.update(s => {
+          const updated = [newStudent, ...s];
+          try {
+            localStorage.setItem('fci_students', JSON.stringify(updated));
+          } catch (e) {
+            console.error('Error saving classmate to localStorage:', e);
+          }
+          return updated;
+        });
+
+        // Save to Firebase asynchronously
+        addDoc(collection(db, 'students'), newStudent).catch(err => {
+          console.error('Error saving classmate to Firebase:', err);
+        });
+
+        this.closeModal();
+      } catch (err) {
+        console.error('Cloudinary upload failed:', err);
+        alert('حدث خطأ أثناء رفع الصور، يرجى المحاولة مرة أخرى.');
+      } finally {
+        this.isSubmitting.set(false);
+      }
     }
   }
 
-  submitMemoryForm() {
-    if (this.memoryForm.valid) {
-      const newMemory: Memory = {
-        name: this.memoryForm.value.name,
-        message: this.memoryForm.value.message,
-        signatureFont: this.memoryForm.value.signatureFont,
-        ...(this.uploadedMemoryImage() ? { imageUrl: this.uploadedMemoryImage()! } : {})
-      };
-
-      this.memories.update(m => {
-        const updated = [newMemory, ...m];
-        try {
-          localStorage.setItem('fci_memories', JSON.stringify(updated));
-        } catch (e) {
-          console.error('Error saving memory to localStorage:', e);
+  async submitMemoryForm() {
+    if (this.memoryForm.valid && !this.isSubmitting()) {
+      this.isSubmitting.set(true);
+      try {
+        let imageUrl = '';
+        if (this.uploadedMemoryImage()) {
+          imageUrl = await this.uploadToCloudinary(this.uploadedMemoryImage()!);
         }
-        return updated;
-      });
 
-      // Save to Firebase asynchronously
-      addDoc(collection(db, 'memories'), newMemory).catch(err => {
-        console.error('Error saving memory to Firebase:', err);
-      });
+        const newMemory: Memory = {
+          name: this.memoryForm.value.name,
+          message: this.memoryForm.value.message,
+          signatureFont: this.memoryForm.value.signatureFont,
+          updatedAt: new Date().toISOString(),
+          status: 'active',
+          ...(imageUrl ? { imageUrl } : {})
+        };
 
-      this.closeMemoryModal();
+        this.memories.update(m => {
+          const updated = [newMemory, ...m];
+          try {
+            localStorage.setItem('fci_memories', JSON.stringify(updated));
+          } catch (e) {
+            console.error('Error saving memory to localStorage:', e);
+          }
+          return updated;
+        });
+
+        // Save to Firebase asynchronously
+        addDoc(collection(db, 'memories'), newMemory).catch(err => {
+          console.error('Error saving memory to Firebase:', err);
+        });
+
+        this.closeMemoryModal();
+      } catch (err) {
+        console.error('Cloudinary upload failed:', err);
+        alert('حدث خطأ أثناء رفع الصورة، يرجى المحاولة مرة أخرى.');
+      } finally {
+        this.isSubmitting.set(false);
+      }
     }
   }
 
   submitCapsuleForm() {
-    if (this.capsuleForm.valid) {
-      const newCapsule = {
-        name: this.capsuleForm.value.name,
-        message: this.capsuleForm.value.message,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
-        date: new Date().toISOString()
-      };
-      this.timeCapsules.update(m => {
-        const updated = [newCapsule, ...m];
-        try {
-          localStorage.setItem('fci_capsules', JSON.stringify(updated));
-        } catch (e) {
-          console.error('Error saving time capsule to localStorage:', e);
-        }
-        return updated;
-      });
+    if (this.capsuleForm.valid && !this.isSubmitting()) {
+      this.isSubmitting.set(true);
+      try {
+        const newCapsule: TimeCapsule = {
+          name: this.capsuleForm.value.name,
+          message: this.capsuleForm.value.message,
+          color: this.colors[Math.floor(Math.random() * this.colors.length)],
+          date: new Date().toISOString(),
+          status: 'active'
+        };
+        this.timeCapsules.update(m => {
+          const updated = [newCapsule, ...m];
+          try {
+            localStorage.setItem('fci_capsules', JSON.stringify(updated));
+          } catch (e) {
+            console.error('Error saving time capsule to localStorage:', e);
+          }
+          return updated;
+        });
 
-      // Save to Firebase asynchronously
-      addDoc(collection(db, 'time_capsules'), newCapsule).catch(err => {
-        console.error('Error saving time capsule to Firebase:', err);
-      });
+        // Save to Firebase asynchronously
+        addDoc(collection(db, 'time_capsules'), newCapsule).catch(err => {
+          console.error('Error saving time capsule to Firebase:', err);
+        });
 
-      this.closeCapsuleModal();
+        this.closeCapsuleModal();
+      } finally {
+        this.isSubmitting.set(false);
+      }
     }
   }
 
-  async loadLocalData() {
-    // 1. Students
-    try {
-      const q = query(collection(db, 'students'));
-      const querySnapshot = await getDocs(q);
-      const loadedStudents: Student[] = [];
-      querySnapshot.forEach((doc) => {
-        loadedStudents.push(doc.data() as Student);
-      });
-      this.students.set(loadedStudents);
+  async loadStudents() {
+    // 1. Try to load from localStorage first for instant display
+    const stored = localStorage.getItem('fci_students');
+    let localStudents: Student[] = [];
+    if (stored) {
       try {
-        localStorage.setItem('fci_students', JSON.stringify(loadedStudents));
-      } catch {
-        console.warn('Could not save students to local storage');
+        localStudents = JSON.parse(stored);
+        this.students.set(localStudents);
+      } catch (e) {
+        console.error('Failed to parse cached students', e);
+      }
+    }
+
+    // 2. Determine the latest timestamp in our local cache
+    let latestTimestamp = '';
+    if (localStudents.length > 0) {
+      const timestamps = localStudents
+        .map(s => s.updatedAt)
+        .filter((t): t is string => !!t);
+      if (timestamps.length > 0) {
+        latestTimestamp = timestamps.reduce((max, t) => t > max ? t : max, '');
+      }
+    }
+
+    // 3. Query Firestore for updates
+    try {
+      let q;
+      if (latestTimestamp) {
+        q = query(
+          collection(db, 'students'), 
+          where('updatedAt', '>', latestTimestamp)
+        );
+      } else {
+        q = query(collection(db, 'students'));
+      }
+
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty || !latestTimestamp) {
+        const newStudents: Student[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as Student;
+          newStudents.push({
+            ...data,
+            updatedAt: data.updatedAt || new Date('2026-01-01').toISOString()
+          });
+        });
+
+        if (newStudents.length > 0) {
+          let updatedStudents: Student[];
+          if (latestTimestamp) {
+            // Merge: update existing or append new ones, avoiding duplicates by name
+            const studentMap = new Map<string, Student>();
+            localStudents.forEach(s => studentMap.set(s.name, s));
+            newStudents.forEach(s => studentMap.set(s.name, s));
+            updatedStudents = Array.from(studentMap.values()).filter(s => s.status !== 'deleted');
+          } else {
+            updatedStudents = newStudents.filter(s => s.status !== 'deleted');
+          }
+
+          this.students.set(updatedStudents);
+          try {
+            localStorage.setItem('fci_students', JSON.stringify(updatedStudents));
+          } catch (e) {
+            console.warn('Could not save students to local storage', e);
+          }
+        }
       }
     } catch (e) {
       console.warn('Firebase students failed, falling back to local storage', e);
-      const stored = localStorage.getItem('fci_students');
-      if (stored) {
-        try {
-          this.students.set(JSON.parse(stored));
-        } catch {
-          console.error('Failed to parse cached students');
-        }
+    }
+  }
+
+  async loadMemories() {
+    // 1. Try to load from localStorage first
+    const stored = localStorage.getItem('fci_memories');
+    let localMemories: Memory[] = [];
+    if (stored) {
+      try {
+        localMemories = JSON.parse(stored);
+        this.memories.set(localMemories);
+      } catch (e) {
+        console.error('Failed to parse cached memories', e);
       }
     }
 
-    // 2. Memories
+    // 2. Determine the latest timestamp in local cache
+    let latestTimestamp = '';
+    if (localMemories.length > 0) {
+      const timestamps = localMemories
+        .map(m => m.updatedAt)
+        .filter((t): t is string => !!t);
+      if (timestamps.length > 0) {
+        latestTimestamp = timestamps.reduce((max, t) => t > max ? t : max, '');
+      }
+    }
+
+    // 3. Query Firestore for updates
     try {
-      const q = query(collection(db, 'memories'));
+      let q;
+      if (latestTimestamp) {
+        q = query(
+          collection(db, 'memories'), 
+          where('updatedAt', '>', latestTimestamp)
+        );
+      } else {
+        q = query(collection(db, 'memories'));
+      }
+
       const querySnapshot = await getDocs(q);
-      const loadedMemories: Memory[] = [];
-      querySnapshot.forEach((doc) => {
-        loadedMemories.push(doc.data() as Memory);
-      });
-      this.memories.set(loadedMemories);
-      try {
-        localStorage.setItem('fci_memories', JSON.stringify(loadedMemories));
-      } catch {
-        console.warn('Could not save memories to local storage');
+
+      if (!querySnapshot.empty || !latestTimestamp) {
+        const newMemories: Memory[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as Memory;
+          newMemories.push({
+            ...data,
+            updatedAt: data.updatedAt || new Date('2026-01-01').toISOString()
+          });
+        });
+
+        if (newMemories.length > 0) {
+          let updatedMemories: Memory[];
+          if (latestTimestamp) {
+            const memoryMap = new Map<string, Memory>();
+            localMemories.forEach(m => memoryMap.set(m.name + '_' + m.message, m));
+            newMemories.forEach(m => memoryMap.set(m.name + '_' + m.message, m));
+            updatedMemories = Array.from(memoryMap.values()).filter(m => m.status !== 'deleted');
+          } else {
+            updatedMemories = newMemories.filter(m => m.status !== 'deleted');
+          }
+
+          this.memories.set(updatedMemories);
+          try {
+            localStorage.setItem('fci_memories', JSON.stringify(updatedMemories));
+          } catch (e) {
+            console.warn('Could not save memories to local storage', e);
+          }
+        }
       }
     } catch (e) {
       console.warn('Firebase memories failed, falling back to local storage', e);
-      const stored = localStorage.getItem('fci_memories');
-      if (stored) {
-        try {
-          this.memories.set(JSON.parse(stored));
-        } catch {
-          console.error('Failed to parse cached memories');
-        }
+    }
+  }
+
+  async loadTimeCapsules() {
+    // 1. Try to load from localStorage first
+    const stored = localStorage.getItem('fci_capsules');
+    let localCapsules: TimeCapsule[] = [];
+    if (stored) {
+      try {
+        localCapsules = JSON.parse(stored);
+        this.timeCapsules.set(localCapsules);
+      } catch (e) {
+        console.error('Failed to parse cached capsules', e);
       }
     }
 
-    // 3. Time Capsules
+    // 2. Determine the latest timestamp (using 'date' field)
+    let latestTimestamp = '';
+    if (localCapsules.length > 0) {
+      const timestamps = localCapsules
+        .map(c => c.date)
+        .filter((t): t is string => !!t);
+      if (timestamps.length > 0) {
+        latestTimestamp = timestamps.reduce((max, t) => t > max ? t : max, '');
+      }
+    }
+
+    // 3. Query Firestore for updates
     try {
-      const q = query(collection(db, 'time_capsules'));
+      let q;
+      if (latestTimestamp) {
+        q = query(
+          collection(db, 'time_capsules'), 
+          where('date', '>', latestTimestamp)
+        );
+      } else {
+        q = query(collection(db, 'time_capsules'));
+      }
+
       const querySnapshot = await getDocs(q);
-      const loadedCapsules: TimeCapsule[] = [];
-      querySnapshot.forEach((doc) => {
-        loadedCapsules.push(doc.data() as TimeCapsule);
-      });
-      this.timeCapsules.set(loadedCapsules);
-      try {
-        localStorage.setItem('fci_capsules', JSON.stringify(loadedCapsules));
-      } catch {
-        console.warn('Could not save capsules to local storage');
+
+      if (!querySnapshot.empty || !latestTimestamp) {
+        const newCapsules: TimeCapsule[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as TimeCapsule;
+          newCapsules.push({
+            ...data,
+            date: data.date || new Date('2026-01-01').toISOString()
+          });
+        });
+
+        if (newCapsules.length > 0) {
+          let updatedCapsules: TimeCapsule[];
+          if (latestTimestamp) {
+            const capsuleMap = new Map<string, TimeCapsule>();
+            localCapsules.forEach(c => capsuleMap.set(c.name + '_' + c.message, c));
+            newCapsules.forEach(c => capsuleMap.set(c.name + '_' + c.message, c));
+            updatedCapsules = Array.from(capsuleMap.values()).filter(c => c.status !== 'deleted');
+          } else {
+            updatedCapsules = newCapsules.filter(c => c.status !== 'deleted');
+          }
+
+          this.timeCapsules.set(updatedCapsules);
+          try {
+            localStorage.setItem('fci_capsules', JSON.stringify(updatedCapsules));
+          } catch (e) {
+            console.warn('Could not save capsules to local storage', e);
+          }
+        }
       }
     } catch (e) {
       console.warn('Firebase capsules failed, falling back to local storage', e);
-      const stored = localStorage.getItem('fci_capsules');
-      if (stored) {
-        try {
-          this.timeCapsules.set(JSON.parse(stored));
-        } catch {
-          console.error('Failed to parse cached capsules');
-        }
-      }
     }
   }
 
