@@ -1,26 +1,45 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   collection, 
   addDoc, 
   getDocs, 
   query, 
   initializeFirestore,
+  getFirestore,
   deleteDoc,
-  doc
+  doc,
+  where,
+  orderBy,
+  limit,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  projectId: "gen-lang-client-0807264227",
-  appId: "1:432407635859:web:1d10fc3773a9a1eaa0aa66",
-  apiKey: "AIzaSyAJ20AkyuPDtsXektsT3Sp9ic1azYnIB0U",
-  authDomain: "gen-lang-client-0807264227.firebaseapp.com",
-  storageBucket: "gen-lang-client-0807264227.firebasestorage.app",
-  messagingSenderId: "432407635859"
+  apiKey: "AIzaSyA7HJG5T4Caj54QZj2NDESkuQ97Kl9pG9w",
+  authDomain: "fci-assiut-2027.firebaseapp.com",
+  projectId: "fci-assiut-2027",
+  storageBucket: "fci-assiut-2027.firebasestorage.app",
+  messagingSenderId: "1003924938115",
+  appId: "1:1003924938115:web:45dfefa4ef428542a12ab6",
+  measurementId: "G-CT71W2BWGK"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with specific database ID from config
-export const db = initializeFirestore(app, {}, "ai-studio-fciassiut2027-8c281ef6-fe41-48a0-bf2d-7291a4573f26");
+// Initialize Firestore safely (handling HMR duplicate initialization)
+let firestoreInstance;
+try {
+  firestoreInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (e) {
+  firestoreInstance = getFirestore(app);
+}
 
-export { collection, addDoc, getDocs, query, deleteDoc, doc };
+export const db = firestoreInstance;
+
+export { collection, addDoc, getDocs, query, deleteDoc, doc, where, orderBy, limit };
+
