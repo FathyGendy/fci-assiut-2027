@@ -296,12 +296,56 @@ export class App implements OnDestroy {
     });
   }
 
+  private compressImage(dataUrl: string, maxWidth = 800, maxHeight = 800, quality = 0.7): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = (err) => {
+        reject(err);
+      };
+    });
+  }
+
   onImageUpload(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        this.uploadedImage.set(reader.result as string);
+      reader.onload = async () => {
+        try {
+          const compressed = await this.compressImage(reader.result as string);
+          this.uploadedImage.set(compressed);
+        } catch {
+          this.uploadedImage.set(reader.result as string);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -311,8 +355,13 @@ export class App implements OnDestroy {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        this.uploadedFreshmanImage.set(reader.result as string);
+      reader.onload = async () => {
+        try {
+          const compressed = await this.compressImage(reader.result as string);
+          this.uploadedFreshmanImage.set(compressed);
+        } catch {
+          this.uploadedFreshmanImage.set(reader.result as string);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -322,8 +371,13 @@ export class App implements OnDestroy {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        this.uploadedMemoryImage.set(reader.result as string);
+      reader.onload = async () => {
+        try {
+          const compressed = await this.compressImage(reader.result as string);
+          this.uploadedMemoryImage.set(compressed);
+        } catch {
+          this.uploadedMemoryImage.set(reader.result as string);
+        }
       };
       reader.readAsDataURL(file);
     }
