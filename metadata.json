@@ -1,0 +1,6 @@
+{
+  "name": "FCI Assiut 2027",
+  "description": "Graduation class website for Assiut University & Assiut National University (FCI) Class of 2027, featuring a live starfield canvas, event countdown, memory gallery, and student directory.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "A student classmate profile card details",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the classmate"
+        },
+        "major": {
+          "type": "string",
+          "description": "Academic major or department"
+        },
+        "university": {
+          "type": "string",
+          "description": "University name (e.g. Assiut University)"
+        },
+        "city": {
+          "type": "string",
+          "description": "Home governorate/city in Egypt"
+        },
+        "track": {
+          "type": "string",
+          "description": "Graduation status or profession"
+        },
+        "caption": {
+          "type": "string",
+          "description": "A custom graduation quote or message"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional senior yearbook photo URL"
+        },
+        "freshmanImageUrl": {
+          "type": "string",
+          "description": "Optional freshman throwback photo URL"
+        }
+      },
+      "required": ["name", "major", "university", "city", "track", "caption"]
+    },
+    "Memory": {
+      "title": "Memory",
+      "description": "A shared handwritten memory note",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the student writing the memory"
+        },
+        "message": {
+          "type": "string",
+          "description": "The custom memory content"
+        },
+        "signatureFont": {
+          "type": "string",
+          "description": "The handwriting display font selected"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional attached polaroid image URL"
+        }
+      },
+      "required": ["name", "message", "signatureFont"]
+    },
+    "TimeCapsule": {
+      "title": "TimeCapsule",
+      "description": "A sealed message to be unlocked in the future",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the message sender"
+        },
+        "message": {
+          "type": "string",
+          "description": "The sealed message content"
+        },
+        "color": {
+          "type": "string",
+          "description": "Custom color theme for the sealed capsule"
+        },
+        "date": {
+          "type": "string",
+          "description": "The creation timestamp"
+        }
+      },
+      "required": ["name", "message", "color", "date"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Registered senior profiles of Class of 2027"
+    },
+    "/memories/{memoryId}": {
+      "schema": "Memory",
+      "description": "Shared classmates memory post-its"
+    },
+    "/time_capsules/{capsuleId}": {
+      "schema": "TimeCapsule",
+      "description": "Sealed time capsules for 2032"
+    }
+  }
+}

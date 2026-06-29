@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600&family=Caveat:wght@600;700&family=Dancing+Script:wght@500;700&family=Great+Vibes&family=Pacifico&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-midnight: var(--app-midnight);
+  --color-deep: var(--app-deep);
+  --color-card: var(--app-card);
+  --color-border: var(--app-border);
+  --color-gold: var(--app-gold);
+  --color-gold-light: var(--app-gold-light);
+  --color-gold-dim: var(--app-gold-dim);
+  --color-ivory: var(--app-ivory);
+  --color-muted: var(--app-muted);
+
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+  --font-handwriting: "Caveat", cursive;
+  --font-dancing: "Dancing Script", cursive;
+  --font-vibes: "Great Vibes", cursive;
+  --font-pacifico: "Pacifico", cursive;
+}
+
+:root {
+  --app-midnight: #0A0C14;
+  --app-deep: #0F1220;
+  --app-card: #171A28;
+  --app-border: #1E2235;
+  --app-gold: #C9943A;
+  --app-gold-light: #E8B96A;
+  --app-gold-dim: #7A5520;
+  --app-ivory: #F0EDDF;
+  --app-muted: #8A8FA8;
+}
+
+:root.light {
+  --app-midnight: #F9FAFB;
+  --app-deep: #F3F4F6;
+  --app-card: #FFFFFF;
+  --app-border: #E5E7EB;
+  --app-gold: #B47F2B;
+  --app-gold-light: #C9943A;
+  --app-gold-dim: #D1D5DB; /* changed to lighter grey/gold for light mode dots etc */
+  --app-ivory: #111827; /* Dark text on light background */
+  --app-muted: #6B7280;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-midnight);
+  color: var(--color-ivory);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+.memory-track {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gold-dim) transparent;
+}
+.memory-track::-webkit-scrollbar { height: 3px; }
+.memory-track::-webkit-scrollbar-thumb { background: var(--color-gold-dim); border-radius: 2px; }
+
+@keyframes bob {
+  0%,100% { transform: translateX(-50%) translateY(0); }
+  50%     { transform: translateX(-50%) translateY(6px); }
+}
+
+.animate-bob {
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+@keyframes glowpulse {
+  0%, 100% { text-shadow: 0 0 18px rgba(201,148,58,0.2); }
+  50%      { text-shadow: 0 0 40px rgba(201,148,58,0.55); }
+}
+
+.animate-glowpulse {
+  animation: glowpulse 4s ease-in-out infinite;
+  font-style: italic;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Custom Signature Style Selection states */
+.signature-card {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.signature-card-selected {
+  border-color: var(--color-gold) !important;
+  background-color: rgba(201, 148, 58, 0.12) !important;
+  color: var(--color-gold) !important;
+  box-shadow: 0 0 12px rgba(201, 148, 58, 0.15);
+}
+
+:root.light .signature-card-selected {
+  background-color: rgba(180, 127, 43, 0.1) !important;
+  color: #8c5b0c !important; /* Slightly darker gold for superior contrast in light mode */
+  border-color: #b47f2b !important;
+}
+
+/* Ensure high contrast select & option text on all browsers and OS */
+select, input, textarea {
+  color: var(--color-ivory) !important;
+  background-color: var(--color-deep) !important;
+  font-family: inherit;
+}
+
+option {
+  color: var(--color-ivory) !important;
+  background-color: var(--color-card) !important;
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: var(--color-gold) !important;
+}
+
+:root.light select, :root.light input, :root.light textarea {
+  color: #111827 !important; /* Force dark gray/black text on light mode */
+  background-color: #F3F4F6 !important; /* Force light gray background */
+  border-color: #E5E7EB !important;
+}
+
+:root.light option {
+  color: #111827 !important; /* Force dark text for options on light mode */
+  background-color: #FFFFFF !important; /* Force white background for options on light mode */
+}
