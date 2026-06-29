@@ -336,11 +336,12 @@ export class App implements OnDestroy {
         major: this.studentForm.value.major,
         university: this.studentForm.value.university,
         city: this.studentForm.value.city,
-        imageUrl: this.uploadedImage() || undefined,
-        freshmanImageUrl: this.uploadedFreshmanImage() || undefined,
         track: 'New Graduate',
-        caption: this.studentForm.value.caption || undefined
+        ...(this.uploadedImage() ? { imageUrl: this.uploadedImage()! } : {}),
+        ...(this.uploadedFreshmanImage() ? { freshmanImageUrl: this.uploadedFreshmanImage()! } : {}),
+        ...(this.studentForm.value.caption ? { caption: this.studentForm.value.caption } : {})
       };
+
       this.students.update(s => {
         const updated = [newStudent, ...s];
         try {
@@ -362,12 +363,13 @@ export class App implements OnDestroy {
 
   submitMemoryForm() {
     if (this.memoryForm.valid) {
-      const newMemory = {
+      const newMemory: Memory = {
         name: this.memoryForm.value.name,
         message: this.memoryForm.value.message,
-        imageUrl: this.uploadedMemoryImage() || undefined,
-        signatureFont: this.memoryForm.value.signatureFont
+        signatureFont: this.memoryForm.value.signatureFont,
+        ...(this.uploadedMemoryImage() ? { imageUrl: this.uploadedMemoryImage()! } : {})
       };
+
       this.memories.update(m => {
         const updated = [newMemory, ...m];
         try {
